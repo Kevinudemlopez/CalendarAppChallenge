@@ -79,6 +79,69 @@ class Day:
         current_time = start_at
         while current_time < end_at:
             if self.slots.get(current_time) is not None:
+            else:
+                self.slots[current_time] = event_id
+            current_time = (datetime.combine(1, 1, 1), current_time) + (timedelta(minutes=15)).time()
 
 
 # TODO: Implement Calendar class here
+class Calendar:
+    def __init__(self):
+        self.days: Dict[date, Day] = {}
+        self.events: Dict[str, Event] = {}
+
+    def add_event(self, title: str, description: str, date_: date, start_at: time, end_at: time) -> str:
+        if date_ < datetime.now().date():
+            date_lower_than_today_error()
+
+        if date_ not in self.days:
+            self.days[date_] = Day(date_)
+        
+        event = Event(title=title, description=description, date_=date_, start_at=start_at, end_at=end_at)
+        self.days[date_].add_event(event.id, start_at, end_at)
+        self.events[event.id] = event
+
+        return event.id
+
+    def add_reminder(self, event_id: str, date_time: datetime, type_: str):
+        event = self.events.get(event_id)
+        if not event:
+            event_not_found_error()
+        event.add_reminder(date_time, type_)
+
+    def find_available_slots(self, date_: date) -> List[time]:
+        available_slots = []
+        if date_ in self.days:
+            for slot, event_id in self.days[date_].slots.items():
+                if event_id is None:
+                    available_slots.append(slot)
+        return available_slots
+
+    def update_event(self, event_id: str, title: str, description: str, date_: date, start_at: time, end_at: time):
+        event = self.events.get(event_id)
+        if not event:
+            event_not_found_error()
+
+        is_new_date = False
+
+        if event.date_ != date_:
+            self.delete_event(event_id)
+            event = Event(title=title, description=description, date_=date_, start_at=start_at, end_at=end_at)
+            event.id = event_id
+            self.events[event_id] = event
+            is_new_date = True
+            if date_ not in self.days:
+                self.days[date_] = Day(date_)
+            day = self.days[date_]
+            day.add_event(event_id, start_at, end_at)
+        else:
+            event.title = title
+            event.description = description
+            event.date_ = date_
+            event.start_at = start_at
+            event.end_at = end_at
+
+        for day in self.days.values():
+            if not is_new_date and event_id in day.slots.values():
+                day.delete_event(event.id)
+                day.update_event(event.id, start_at, end_at)
